@@ -1,24 +1,33 @@
 import torch
+import torch.nn as nn
+import torch.optim as optim
 from torchvision import datasets, transforms
+import numpy as np
+import os
 import random
 
-# Setup MNIST test data
+# --- 1. Data Setup ---
 transform = transforms.Compose([transforms.ToTensor()])
+train_data = datasets.MNIST(root='./data', train=True, download=True, transform=transform)
 test_data = datasets.MNIST(root='./data', train=False, download=True, transform=transform)
 
-def save_image_hex(filename, img_tensor):
-    """Quantize image to uint4 (0-15) and save as hex."""
-    # Scale 0.0-1.0 to 0-15
-    img_q = torch.round(img_tensor * 15).int().flatten()
+def to_hex(val, bits=4):
+    val = int(val)
+    if val < 0: val = (1 << bits) + val
+    return f"{val:0{bits//4}x}"
+
+def save_mem_file(filename, tensor, bits=4):
+    data_flat = tensor.detach().numpy().flatten()
     with open(filename, 'w') as f:
-        for val in img_q:
-            # Unsigned hex conversion (0 to f)
-            f.write(f"{int(val):x}\n")
+        for val in data_flat:
+            f.write(f"{to_hex(val, bits)}\n")
     print(f"Saved {filename}")
 
-# Select random test image
-index = random.randint(0, 9999)
-test_img, test_label = test_data[index]
 
-save_image_hex("input1.mem", test_img)
-print(f"Image Label: {test_label}")
+# C. Export Test Image
+# Get one image from test set
+test_img, test_label = test_data[random.randint(0,len(test_data)-1)]
+img_q = torch.round(test_img * 15).int()
+save_mem_file("input1.mem", img_q)
+
+print(f"\nExpected Label for input.mem: {test_label}")

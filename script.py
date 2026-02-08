@@ -116,8 +116,11 @@ save_mem_file("w3.mem", w3_q)
 
 # C. Export Test Image
 # Get one image from test set
-test_img, test_label = test_data[random.randint(0,len(test_data)-1)]
+test_img, test_label = test_data[5]
 img_q = torch.round(test_img * 15).int()
+save_mem_file("input1.mem", img_q)
+
+print(f"\nExpected Label for input.mem: {test_label}")
 
 # --- 6. Hardware Golden Reference Check ---
 # We simulate the hardware math here to know what the FPGA *should* output
@@ -176,3 +179,32 @@ with torch.no_grad():
         total += data.shape[0]
 
 print(f"Quantized Model Accuracy: {100. * correct / total:.2f}%")
+
+
+TEST_IMAGE_INDEX = random.randint(0,9999)
+
+# Get image and label
+test_img, test_label = test_data[TEST_IMAGE_INDEX]
+img_q = torch.round(test_img * 15).int()
+
+# Save only the input file
+save_mem_file("input1.mem", img_q)
+print(f"Saved input1.mem for Image Index {TEST_IMAGE_INDEX} (True Label: {test_label})")
+
+# --- Golden Reference Check for this specific image ---
+x_vec = img_q.flatten().float()
+
+# Layer 1
+z1 = torch.matmul(x_vec, w1_q.t().float())
+a1 = torch.clamp(torch.floor(z1/64), 0, 15)
+
+# Layer 2
+z2 = torch.matmul(a1, w2_q.t().float())
+a2 = torch.clamp(torch.floor(z2/64), 0, 15)
+
+# Layer 3
+z3 = torch.matmul(a2, w3_q.t().float())
+
+print("\n--- Python Golden Prediction ---")
+print("Logits:", z3.detach().numpy())
+print("Predicted Class:", torch.argmax(z3).item())
